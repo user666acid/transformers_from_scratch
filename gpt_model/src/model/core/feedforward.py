@@ -5,8 +5,7 @@ class FeedForward(nn.Module):
     def __init__(self,
                  emb_size: int,
                  dropout: float=0.1):
-        """
-        Слой для FFN.
+        """Слой для FFN.
 
         Args:
             emb_size: Размерность внутреннего представления.
@@ -23,9 +22,7 @@ class FeedForward(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Определяет логику вычислений в слое.
-
+        """Определяет логику вычислений в слое.
         Увеличение размерности представления -> активация -> уменьшение размерности -> дропаут.
 
         Args:

@@ -34,8 +34,7 @@ class Decoder(nn.Module):
         self.norm_2 = nn.LayerNorm(emb_size)
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Определяет логику вычислений в блоке декодера.
+        """Определяет логику вычислений в блоке декодера.
         Используется post-layer нормализация, MHA, остаточная связь и полносвязный слой.
 
         Args:

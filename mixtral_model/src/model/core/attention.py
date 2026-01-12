@@ -76,7 +76,7 @@ class GroupedQueryAttention(nn.Module):
                                      Q: torch.Tensor,
                                      K: torch.Tensor,
                                      V: torch.Tensor,
-                                     cache: Optinal[Tuple[torch.Tensor, torch.Tensor]]
+                                     cache: Optional[Tuple[torch.Tensor, torch.Tensor]]
                                      ) -> torch.Tensor:
         """Вычисление матрицы внимания.
 

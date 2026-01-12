@@ -8,6 +8,13 @@ class HeadAttention(nn.Module):
                  emb_size: int,
                  head_size: int,
                  max_seq_len: int):
+        """Слой для HeadAttention.
+
+        Args:
+            emb_size: Размерность внутреннего представления.
+            head_size: Размерность головы внимания.
+            max_seq_len: Максимальная длина последовательности.
+        """
         super().__init__()
 
         self.emb_size = emb_size
@@ -20,37 +27,23 @@ class HeadAttention(nn.Module):
 
         self.mask = torch.tril(torch.ones(max_seq_len, max_seq_len))
 
-    def forward(self,
-                x: torch.Tensor,
-                use_cache: bool=True,
-                cache: Optional[Tuple[torch.Tensor, torch.Tensor]]=None
-                ) -> Tuple[torch.Tensor, Optional[Tuple[torch.Tensor, torch.Tensor]]]:
-        '''
-        '''
-        K = self.W_k(x)
-        Q = self.W_q(x)
-        V = self.W_v(x)
-        
-        if use_cache:
-            if cache:
-                K = torch.cat([cache[0], K], dim=1)
-                V = torch.cat([cache[1], V], dim=1)
-
-            attn = self.scaled_dot_product_attention(Q, K, V, cache)
-            cache = (K, V)
-        else:
-            attn = self.scaled_dot_product_attention(Q, K, V, cache)
-        
-        return (attn, cache)
-
     def scaled_dot_product_attention(self,
                                      Q: torch.Tensor,
                                      K: torch.Tensor,
                                      V: torch.Tensor,
                                      cache: Optional[Tuple[torch.Tensor, torch.Tensor]]
                                      ) -> torch.Tensor:
-        '''
-        '''
+        """Вычисление матрицы внимания.
+
+        Args:
+            Q: Матрица запросов.
+            K: Матрица ключей.
+            V: Матрица значений.
+            cache: Содержит предпосчитанные матрицы ключей и значений.
+
+        Returns:
+            Взвешанные по вниманию значения.
+        """
         _, seq_len, _ = Q.shape
         
         attn_scores = torch.matmul(Q, K.transpose(-2, -1))
@@ -65,6 +58,37 @@ class HeadAttention(nn.Module):
 
         return weighted_values
 
+    def forward(self,
+                x: torch.Tensor,
+                use_cache: bool = True,
+                cache: Optional[Tuple[torch.Tensor, torch.Tensor]] = None
+                ) -> Tuple[torch.Tensor, Optional[Tuple[torch.Tensor, torch.Tensor]]]:
+        """Определяет логику вычислений в слое.
+
+        Args:
+            x: Исходное представление последовательности.
+            use_cache: Флаг, контролирующий использование KV-кэша.
+            cache: Содержит предпосчитанные матрицы ключей и значений.
+
+        Returns:
+            Преобразованное представление, KV-кэш.
+        """
+        K = self.W_k(x)
+        Q = self.W_q(x)
+        V = self.W_v(x)
+
+        if use_cache:
+            if cache:
+                K = torch.cat([cache[0], K], dim=1)
+                V = torch.cat([cache[1], V], dim=1)
+
+            attn = self.scaled_dot_product_attention(Q, K, V, cache)
+            cache = (K, V)
+        else:
+            attn = self.scaled_dot_product_attention(Q, K, V, cache)
+
+        return (attn, cache)
+
 class MultiHeadAttention(nn.Module):
     def __init__(self,
                  num_heads:int,
@@ -72,6 +96,15 @@ class MultiHeadAttention(nn.Module):
                  head_size: int,
                  max_seq_len: int,
                  dropout: float=0.1):
+        """Слой для MultiHeadAttention.
+
+        Args:
+            num_heads: Количество голов внимания.
+            emb_size: Размерность внутреннего представления.
+            head_size: Размерность головы внимания.
+            max_seq_len: Максимальная длина последовательности.
+            dropout: Доля зануляемых элементов.
+        """
         super().__init__()
         
         self.num_heads = num_heads
@@ -89,8 +122,16 @@ class MultiHeadAttention(nn.Module):
                 use_cache: bool=True,
                 cache: Optional[Tuple[torch.Tensor, torch.Tensor]]=None
                 ) -> Tuple[torch.Tensor, Optional[Tuple[torch.Tensor, torch.Tensor]]]:
-        '''
-        '''
+        """Определяет логику вычислений в слое.
+
+        Args:
+            x: Исходное представление последовательности.
+            use_cache: Флаг, контролирующий использование KV-кэша.
+            cache: Содержит предпосчитанные матрицы ключей и значений.
+
+        Returns:
+            Преобразованное представление, KV-кэш.
+        """
         if use_cache:
             attn_outputs = []
             current_cache = []

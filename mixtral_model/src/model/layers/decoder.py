@@ -55,7 +55,7 @@ class Decoder(nn.Module):
                 ) -> Tuple[torch.Tensor, Optional[Tuple[torch.Tensor, torch.Tensor]]]:
         """
         Определяет логику вычислений в блоке декодера.
-        Используется pre-layer нормализация, GQA, остаточная связь и Mixture of Experts.
+        Используется pre-layer нормализация, RoPE, GQA с KV-кэшированием, остаточная связь и Mixture of Experts.
 
         Args:
             x: Исходное представление последовательности.

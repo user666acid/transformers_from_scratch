@@ -17,6 +17,18 @@ class GPT2(nn.Module):
                  num_layers: int,
                  dropout: float=0.1,
                  device: str='cpu'):
+        """Модель GPT2
+
+        Args:
+            vocab_size: Размерность словаря модели.
+            max_seq_len: Максимальная длина последовательности.
+            emb_size: Размерность внутреннего представления.
+            num_heads: Количество голов внимания.
+            head_size: Размерность головы внимания.
+            num_layers: Количество декодеров.
+            dropout: Доля зануляемых элементов.
+            device: Где хранить и совершать вычисления.
+        """
         super().__init__()
         
         self.vocab_size = vocab_size
@@ -44,8 +56,16 @@ class GPT2(nn.Module):
                 use_cache: bool=True,
                 cache: Optional[List[Tuple[torch.Tensor, torch.Tensor]]]=None
                 ) -> Tuple[torch.Tensor, Optional[List[Tuple[torch.Tensor, torch.Tensor]]]]:
-        '''
-        '''
+        """Определяет логику вычислений в модели.
+
+        Args:
+            x: Исходная последовательность токенов.
+            use_cache: Флаг, контролирующий использование KV-кэша.
+            cache: Содержит предпосчитанные матрицы ключей и значений для декодеров.
+
+        Returns:
+            Логиты, предпосчитанные матрицы ключей и значений для декодеров.
+        """
         seq_len = x.size()[1] if len(x.size()) == 2 else 1
 
         if use_cache:
@@ -84,10 +104,22 @@ class GPT2(nn.Module):
                  do_sample: bool,
                  temperature: float=1.0,
                  top_k: Optional[int]=None,
-                 top_p: Optinal[float]=None,
+                 top_p: Optional[float]=None,
                  use_cache: bool=True) -> torch.Tensor:
-        '''
-        '''
+        """Определяет логику генерации токенов.
+
+        Args:
+            x: Исходная последовательность токенов.
+            max_new_tokens: Ограничение на максимальное количество сгенерированных токенов.
+            do_sample: Флаг, контролирующий использование сэмплинга при генерации.
+            temperature: Температура. Константа для масштабирования логитов, используется для контроля формы генерируемого распределния.
+            top_k: Количество претендентов для top-k сэмплирования.
+            top_p: Вероятностная масса для top-p сэмплирования.
+            use_cache: Флаг, контролирующий использование KV-кэша.
+
+        Returns:
+            Сгенерированные токены.
+        """
         cache = None
         for step in range(max_new_tokens):
             if use_cache and step == 0:
@@ -102,7 +134,7 @@ class GPT2(nn.Module):
 
             if do_sample:
                 logits_sampled = self.sample_logits(logits_last, top_k, top_p)
-                probs = torch.softmax(logits_last, dim=-1)
+                probs = torch.softmax(logits_sampled, dim=-1)
                 next_token = torch.multinomial(probs, num_samples=1)
             else:
                 probs = torch.softmax(logits_last, dim=-1)
@@ -114,10 +146,20 @@ class GPT2(nn.Module):
 
     def sample_logits(self,
                       logits: torch.Tensor,
-                      top_k: Optinal[int],
-                      top_p: Optinal[float]) -> torch.Tensor:
-        '''
-        '''
+                      top_k: Optional[int],
+                      top_p: Optional[float]) -> torch.Tensor:
+        """Сэмплирование логитов.
+        Отсеивает нерелевантные логиты в зависимости от выбранной стратегии.
+        Отсеянным логитам присваивается значение -Inf.
+
+        Args:
+            logits: Исходные логиты.
+            top_k: Количество претендентов для top-k сэмплирования.
+            top_p: Вероятностная масса для top-p сэмплирования.
+
+        Returns:
+            Преобразованные логиты.
+        """
         if top_k:
             mask = logits < torch.topk(logits, top_k)[0][..., -1, None]
             logits = logits.masked_fill(mask, -float('Inf'))
@@ -138,15 +180,18 @@ class GPT2(nn.Module):
             valid_loader,
             num_epoch: int,
             learning_rate: float):
-        '''
-        '''
+        """Определяет логику обучения модели.
+
+        Args:
+            train_loader: torch.utils.data.DataLoader, содержит данные для обучения.
+            valid_loader: torch.utils.data.DataLoader, содержит данные для валидации.
+            num_epoch: Количество эпох обучения.
+            learning_rate: Скорость обучения.
+        """
         self.to(self.device)
 
         optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
         criterion = torch.nn.CrossEntropyLoss()
-
-        train_losses = torch.zeros(num_epoch)
-        valid_losses = torch.zeros(num_epoch)
 
         for i in range(num_epoch):
 
@@ -182,6 +227,11 @@ class GPT2(nn.Module):
         return
 
     def save(self, path: str):
+        """Сохранение обученной модели.
+
+        Args:
+            path: Путь для сохранения.
+        """
         torch.save({
             'model_state_dict': self.state_dict(),
             'vocab_size': self.vocab_size,
@@ -196,6 +246,15 @@ class GPT2(nn.Module):
     def load(cls,
              path: str,
              device: str):
+        """Загрузка обученной модели.
+
+        Args:
+            path: Путь для загрузки.
+            device: Где хранить и совершать вычисления.
+
+        Returns:
+            Загруженная модель.
+        """
         checkpoint = torch.load(path, map_location=device)
         model = cls(
             vocab_size=checkpoint['vocab_size'],
