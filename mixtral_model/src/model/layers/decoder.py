@@ -20,6 +20,20 @@ class Decoder(nn.Module):
                  top_k_experts: int,
                  window_size: int,
                  dropout: float=0.1):
+        """Блок декодера модели.
+
+        Args:
+            num_q_heads: Количество голов внимания для запросов.
+            num_kv_heads: Количество голов внимания для ключей и значений.
+            emb_size: Размерность внутреннего представления.
+            head_size: Размерность головы внимания.
+            max_seq_len: Максимальная длина последовательности.
+            rope: Объект для слоя позиционного кодирования RoPE.
+            num_experts: Общее количество экспертов.
+            top_k_experts: Количество отбираемых экспертов.
+            window_size: Длина окна внимания.
+            dropout: Доля зануляемых элементов.
+        """
         super().__init__()
         
         self.num_q_heads = num_q_heads
@@ -39,8 +53,18 @@ class Decoder(nn.Module):
                 use_cache: bool=True,
                 cache: Optional[Tuple[torch.Tensor, torch.Tensor]]=None
                 ) -> Tuple[torch.Tensor, Optional[Tuple[torch.Tensor, torch.Tensor]]]:
-        '''
-        '''
+        """
+        Определяет логику вычислений в блоке декодера.
+        Используется pre-layer нормализация, GQA, остаточная связь и Mixture of Experts.
+
+        Args:
+            x: Исходное представление последовательности.
+            use_cache: Флаг, контролирующий использование KV-кэша.
+            cache: Содержит предпосчитанные матрицы ключей и значений.
+
+        Returns:
+            Преобразованное представление, KV-кэши.
+        """
         attn_outputs, cache = self.multihead_attn(self.norm_1(x), use_cache, cache)
         
         x = x + attn_outputs

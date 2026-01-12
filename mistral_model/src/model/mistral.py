@@ -21,7 +21,7 @@ class Mistral(nn.Module):
                  window_size: int=4096,
                  device: str='cpu'):
         """Модель Mistral
-        -
+
         Args:
             vocab_size: Размерность словаря модели.
             max_seq_len: Максимальная длина последовательности.

@@ -22,6 +22,22 @@ class Mixtral(nn.Module):
                  dropout: float=0.1,
                  window_size: int=4096,
                  device: str='cpu'):
+        """Модель Mistral
+
+        Args:
+            vocab_size: Размерность словаря модели.
+            max_seq_len: Максимальная длина последовательности.
+            emb_size: Размерность внутреннего представления.
+            num_q_heads: Количество голов внимания для запросов.
+            num_kv_heads: Количество голов внимания для ключей и значений.
+            head_size: Размерность головы внимания.
+            num_layers: Количество декодеров.
+            num_experts: Общее количество экспертов.
+            top_k_experts: Количество отбираемых экспертов.
+            dropout: Доля зануляемых элементов.
+            window_size: Длина окна внимания.
+            device: Где хранить и совершать вычисления.
+        """
         super().__init__()
         
         self.vocab_size = vocab_size
@@ -53,8 +69,16 @@ class Mixtral(nn.Module):
                 use_cache: bool=True,
                 cache: Optional[List[Tuple[torch.Tensor, torch.Tensor]]]=None
                 ) -> Tuple[torch.Tensor, Optional[List[Tuple[torch.Tensor, torch.Tensor]]]]:
-        '''
-        '''
+        """Определяет логику вычислений в модели.
+
+        Args:
+            x: Исходная последовательность токенов.
+            use_cache: Флаг, контролирующий использование KV-кэша.
+            cache: Содержит предпосчитанные матрицы ключей и значений для декодеров.
+
+        Returns:
+            Логиты, предпосчитанные матрицы ключей и значений для декодеров.
+        """
         if use_cache:
             final_caches = []
             emb = self.dropout(self.token_emb(x))
@@ -90,8 +114,20 @@ class Mixtral(nn.Module):
                  top_k: Optional[int]=None,
                  top_p: Optional[float]=None,
                  use_cache: bool=True) -> torch.Tensor:
-        '''
-        '''
+        """Определяет логику генерации токенов.
+
+        Args:
+            x: Исходная последовательность токенов.
+            max_new_tokens: Ограничение на максимальное количество сгенерированных токенов.
+            do_sample: Флаг, контролирующий использование сэмплинга при генерации.
+            temperature: Температура. Константа для масштабирования логитов, используется для контроля формы генерируемого распределния.
+            top_k: Количество претендентов для top-k сэмплирования.
+            top_p: Вероятностная масса для top-p сэмплирования.
+            use_cache: Флаг, контролирующий использование KV-кэша.
+
+        Returns:
+            Сгенерированные токены.
+        """
         cache = None
         for step in range(max_new_tokens):
             if use_cache and step == 0:
@@ -120,8 +156,18 @@ class Mixtral(nn.Module):
                       logits: torch.Tensor,
                       top_k: Optional[int],
                       top_p: Optional[float]) -> torch.Tensor:
-        '''
-        '''
+        """Сэмплирование логитов.
+        Отсеивает нерелевантные логиты в зависимости от выбранной стратегии.
+        Отсеянным логитам присваивается значение -Inf.
+
+        Args:
+            logits: Исходные логиты.
+            top_k: Количество претендентов для top-k сэмплирования.
+            top_p: Вероятностная масса для top-p сэмплирования.
+
+        Returns:
+            Преобразованные логиты.
+        """
         if top_k:
             mask = logits < torch.topk(logits, top_k)[0][..., -1, None]
             logits = logits.masked_fill(mask, -float('Inf'))
@@ -143,15 +189,18 @@ class Mixtral(nn.Module):
             valid_loader,
             num_epoch: int,
             learning_rate: float):
-        '''
-        '''
+        """Определяет логику обучения модели.
+
+        Args:
+            train_loader: torch.utils.data.DataLoader, содержит данные для обучения.
+            valid_loader: torch.utils.data.DataLoader, содержит данные для валидации.
+            num_epoch: Количество эпох обучения.
+            learning_rate: Скорость обучения.
+        """
         self.to(self.device)
 
         optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
         criterion = torch.nn.CrossEntropyLoss()
-
-        train_losses = torch.zeros(num_epoch)
-        valid_losses = torch.zeros(num_epoch)
 
         for i in range(num_epoch):
 
@@ -187,6 +236,11 @@ class Mixtral(nn.Module):
         return
 
     def save(self, path: str):
+        """Сохранение обученной модели.
+
+        Args:
+            path: Путь для сохранения.
+        """
         torch.save({
             'model_state_dict': self.state_dict(),
             'vocab_size': self.vocab_size,
@@ -204,6 +258,15 @@ class Mixtral(nn.Module):
     def load(cls,
              path: str,
              device: str):
+        """Загрузка обученной модели.
+
+        Args:
+            path: Путь для загрузки.
+            device: Где хранить и совершать вычисления.
+
+        Returns:
+            Загруженная модель.
+        """
         checkpoint = torch.load(path, map_location=device)
         model = cls(
             vocab_size=checkpoint['vocab_size'],

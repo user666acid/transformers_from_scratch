@@ -15,6 +15,22 @@ class GroupedQueryAttention(nn.Module):
                  rope: RoPE,
                  window_size: int,
                  dropout: float=0.1):
+        """Слой для GroupedQueryAttention.
+        Вариация MHA, призванная повысить эффективность (в частности, уменьшить размер KV-кэша).
+        Матрицы запросов уникальны для каждой головы внимания.
+        Матрицы ключей и значений являются общими для каждой группы из num_q_heads // num_kv_heads голов внимания.
+        Ограничение контекста внимания: для каждого токена внимание распространяется лишь на window_size токенов назад.
+
+        Args:
+            num_q_heads: Количество голов внимания для запросов.
+            num_kv_heads: Количество голов внимания для ключей и значений.
+            emb_size: Размерность внутреннего представления.
+            head_size: Размерность головы внимания.
+            max_seq_len: Максимальная длина последовательности.
+            rope: Объект для слоя позиционного кодирования RoPE.
+            window_size: Длина окна внимания.
+            dropout: Доля зануляемых элементов.
+        """
         super().__init__()
         
         self.num_q_heads = num_q_heads
@@ -38,8 +54,15 @@ class GroupedQueryAttention(nn.Module):
     def get_window_attention_mask(self,
                                   max_seq_len: int,
                                   window_size: int) -> torch.Tensor:
-        '''
-        '''
+        """Получение маски для вычисления внимания с ограниченным контекстом.
+
+        Args:
+            max_seq_len: Максимальная длина последовательности.
+            window_size: Длина окна внимания.
+
+        Returns:
+            Маска для матрицы значений внимания.
+        """
         row_idxs = torch.arange(max_seq_len).unsqueeze(1)
         column_idxs = torch.arange(max_seq_len).unsqueeze(0)
         
@@ -55,6 +78,17 @@ class GroupedQueryAttention(nn.Module):
                                      V: torch.Tensor,
                                      cache: Optinal[Tuple[torch.Tensor, torch.Tensor]]
                                      ) -> torch.Tensor:
+        """Вычисление матрицы внимания.
+
+        Args:
+            Q: Матрица запросов.
+            K: Матрица ключей.
+            V: Матрица значений.
+            cache: Содержит предпосчитанные матрицы ключей и значений.
+
+        Returns:
+            Взвешанные по вниманию значения.
+        """
         _, _, seq_len, _ = Q.shape
         
         attn_scores = torch.matmul(Q, K.transpose(-2, -1))
@@ -71,6 +105,16 @@ class GroupedQueryAttention(nn.Module):
     def group_attention(self,
                         tensor: torch.Tensor,
                         group_size: int) -> torch.Tensor:
+        """Условное приведение голов для матриц ключей и значений в размерность головы запросов.
+        Выполняется путём виртуального (ссылающегося на то же место в памяти) копирования значений.
+
+        Args:
+            tensor: Исходная матрица.
+            group_size: Размер группы.
+
+        Returns:
+            Матрица с продублированными значениями в 1-ом измерении.
+        """
         batch_size, num_kv_heads, seq_len, head_size = tensor.size()
         dim = 1
 
@@ -88,8 +132,16 @@ class GroupedQueryAttention(nn.Module):
                 use_cache: bool=True,
                 cache: Optional[Tuple[torch.Tensor, torch.Tensor]]=None
                 ) -> Tuple[torch.Tensor, Optional[Tuple[torch.Tensor, torch.Tensor]]]:
-        '''
-        '''
+        """Определяет логику вычислений в слое.
+
+        Args:
+            x: Исходное представление последовательности.
+            use_cache: Флаг, контролирующий использование KV-кэша.
+            cache: Содержит предпосчитанные матрицы ключей и значений.
+
+        Returns:
+            Преобразованное представление, KV-кэш.
+        """
         batch_size, seq_len, _ = x.size()
         group_size = self.num_q_heads // self.num_kv_heads
         

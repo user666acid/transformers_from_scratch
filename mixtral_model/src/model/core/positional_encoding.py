@@ -8,6 +8,13 @@ class RoPE(nn.Module):
                  head_size: int,
                  max_seq_len: int,
                  base: int=10000):
+        """Слой для кодирование относительных позиций элементов последовательности через Rotary Positional Embeddings.
+
+        Args:
+            head_size: Размерность головы внимания.
+            max_seq_len: Максимальная длина последовательности.
+            base: Константа для расчёта частоты вращения.
+        """
         super().__init__()
 
         cos_matrix, sin_matrix = self.get_angles_matrices(head_size, max_seq_len, base)
@@ -18,8 +25,16 @@ class RoPE(nn.Module):
                             head_size: int,
                             max_seq_len: int,
                             base: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        '''
-        '''
+        """Вычисление матриц для косинусов и синусов углов вращения.
+
+        Args:
+            head_size: Размерность головы внимания.
+            max_seq_len: Максимальная длина последовательности.
+            base: Константа для расчёта частоты вращения.
+
+        Returns:
+            Матрицы для косинусов и синусов углов вращения.
+        """
         d = head_size // 2
         exp = 2 * torch.arange(d, dtype=torch.float32) / head_size
         inverse_freq = 1 / torch.pow(base, exp)
@@ -35,6 +50,16 @@ class RoPE(nn.Module):
     def forward(self,
                 x: torch.Tensor,
                 start_pos: int=0) -> torch.Tensor:
+        """Определяет логику вычислений в слое.
+        Выполняет вращение векторов в двумерном (на уровне пар элементов) пространстве с помощью матрицы вращения.
+
+        Args:
+            x: Исходное представление последовательности.
+            start_pos: Индекс начальной позиции, необходим при использовании KV-кэша.
+
+        Returns:
+            Представление последовательности после выполнения вращения элементов.
+        """
         _, _, seq_len, _ = x.size()
 
         cos = self.cos_matrix[start_pos: start_pos + seq_len, :]
